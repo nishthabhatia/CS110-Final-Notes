@@ -7,16 +7,12 @@
 \usepackage{mathtools}
 %\usepackage{macros}
 \usepackage{fancyvrb}
-\usepackage{etoolbox}
-\makeatletter
-\preto{\@verbatim}{\topsep=0pt \partopsep=0pt}
-\makeatother
 \DefineVerbatimEnvironment{code}{Verbatim}{fontsize=\small}
 \DefineVerbatimEnvironment{example}{Verbatim}{fontsize=\small}
 
 \begin{document}
-\scriptsize
-\begin{multicols}{3}
+\small
+\begin{multicols}{2}
   \raggedright
   {\bf Files and Directories}
 
@@ -26,12 +22,18 @@
 
   {\tt DIR* opendir(char* path)}.\\
   {\tt struct dirent* readdir(DIR* dir)}. \texttt{struct dirent*} represents an
-  entry (file or subdirectory) inside a directory:
+  entry (file or subdirectory) inside a directory, where \texttt{d\_ino} and
+  \texttt{d\_name} fields are definitely present on all platforms.
+  {\footnotesize
   \begin{verbatim}
 struct dirent {
-  ino_t d_ino;    // inode number
-  char  d_name[]; // name of entry
-};\end{verbatim}
+  ino_t          d_ino;       /* inode number */
+  off_t          d_off;       /* offset to the next dirent */
+  unsigned short d_reclen;    /* length of this record */
+  unsigned char  d_type;      /* type of file; not supported
+                                 by all file system types */
+  char           d_name[256]; /* filename */
+};\end{verbatim}}
   {\tt ssize\_t read(int fd, void* buf, size\_t count)} Read up to {\tt count}
   bytes from the fd into buf.
 
@@ -40,11 +42,12 @@ struct dirent {
 
   {\tt int close(fd)} returns 0 on success.
 
-  {\tt stat} populates a {\tt struct stat}:
-  {\tt S\_ISREG, S\_ISDIR, S\_ISLINK(st.st\_mode) }.
+  {\tt stat} populates a {\tt struct stat}: use macros
+  {\tt S\_ISREG, S\_ISDIR, S\_ISLINK(st.st\_mode) } on the mode field to see
+  what type of object it is.
   {\tt stat(char* path, struct stat *st)} populates \texttt{struct stat} defined
   as
-{\tiny
+  {\footnotesize
   \begin{verbatim}
 struct stat {
   dev_t     st_dev;     /* ID of device containing file */
@@ -60,8 +63,7 @@ struct stat {
   time_t    st_atime;   /* time of last access */
   time_t    st_mtime;   /* time of last modification */
   time_t    st_ctime;   /* time of last status change */
-}; \end{verbatim}
-}
+}; \end{verbatim}}
   {\tt lstat} Same as {\tt stat} except {\tt lstat} returns info about the
   link while {\tt stat} returns info about the linked file if a file is a link.
 
