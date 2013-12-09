@@ -92,7 +92,40 @@ struct stat {
   \noindent\rule{4cm}{0.4pt}
 
   {\bf v6 Data structures}
-  %TODO: look at project handout
+  \begin{verbatim}
+struct inode {
+  uint16_t i_mode; //bit vec of file type and permissions
+  uint8_t i_nlink	//number of directory entries
+  uint8_t i_uid; //owner
+  uint8_t i_gid; //group of owner
+  uint8_t i_size0; //most significant byte of size
+  uint16_t i_size1; //lower two bytes if size (of 3 bytes)
+  uint16_t i_addr[8]; //device addresses constituting file
+  uint16_t i_atime[2]; //access time
+  uint16_t i_mtime[2]; // modify time
+};
+
+struct filsys {
+  uint16_t s_isize; // size in blocks of I list
+  uint16_t s_fsize; // size in blocks of entire volume
+  uint16_t s_nfree; // number of in core free blocks (0-100)
+  uint16_t s_free[100]; // in core free blocks
+  uint16_t s_ninode; // number of in core I nodes (0-100)
+  uint16_t s_inode[100]; // in core free I nodes
+  uint8_t s_flock; // lock during free list manipulation
+  uint8_t s_ilock; // lock during I list manipulation
+  uint8_t s_fmod; // super block modified flag
+  uint8_t s_ronly; // mounted read-only flag
+  uint16_t s_time[2]; // current date of last update
+  uint16_t pad[48]; // aligns struct filesys to be
+  // 512 bytes in size (the block size!)
+};
+
+struct direntv6 {
+  uint16_t d_inumber;
+  char     d_name[14];
+};
+  \end{verbatim}
 
   \noindent\rule{4cm}{0.4pt}
 
@@ -319,26 +352,21 @@ int main(int argc, const char *argv[]) {
 
   {\bf Networking Examples}
 
-  {\bf Client code}
+  {\bf Client code} {\scriptsize
   \begin{verbatim}
 int createClientSocket(
 const string& host,
 unsigned short port) {
-  struct hostent *he =
-    gethostbyname(host.c_str());
-  if (he == NULL)
-  return kClientSocketError;
-  int s=socket(AF_INET,SOCK_STREAM,0);
-  if (s < 0)
-    return kClientSocketError;
+  struct hostent *he = gethostbyname(host.c_str());
+  if (he == NULL) return kClientSocketError;
+  int s = socket(AF_INET,SOCK_STREAM,0);
+  if (s < 0) return kClientSocketError;
   struct sockaddr_in serverAddress;
-  memset(&serverAddress, 0,
-    sizeof(serverAddress));
+  memset(&serverAddress, 0, sizeof(serverAddress));
   serverAddress.sin_family = AF_INET;
   serverAddress.sin_port = htons(port);
   serverAddress.sin_addr.s_addr =
-    ((struct in_addr *)
-      he->h_addr)->s_addr;
+    ((struct in_addr *) he->h_addr)->s_addr;
   if (connect(s, (struct sockaddr *)
     &serverAddress,
     sizeof(serverAddress)) != 0) {
@@ -350,11 +378,9 @@ unsigned short port) {
 
 int main(int argc, char *argv[]) {
   int clientSocket =
-    createClientSocket(
-    "myth22.stanford.edu", 12345);
+    createClientSocket("myth22.stanford.edu", 12345);
   if (clientSocket == kClientSocketError) {
-    cerr << "Time server
-      could not be reached" << endl;
+    cerr << "Time server could not be reached" << endl;
     cerr << "Aborting" << endl;
     return kTimeServerInaccessible;
   }
@@ -365,44 +391,34 @@ int main(int argc, char *argv[]) {
   cout << timeline << endl;
   return 0;
 }
-  \end{verbatim}
+  \end{verbatim}}
 
-  {\bf Server code}
+  {\bf Server code}{\scriptsize
   \begin{verbatim}
 static const int kReuseAddresses = 1;
-int createServerSocket(
-unsigned short port, int backlog) {
-  int serverSocket = socket(AF_INET,
-    SOCK_STREAM, 0);
-  if (serverSocket < 0)
-    return kServerSocketFailure;
+int createServerSocket(unsigned short port, int backlog) {
+  int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+  if (serverSocket < 0) return kServerSocketFailure;
   if (setsockopt(serverSocket,
-    SOL_SOCKET, SO_REUSEADDR,
-    &kReuseAddresses,
-    sizeof(int)) < 0) {
+    SOL_SOCKET, SO_REUSEADDR, &kReuseAddresses, sizeof(int)) < 0) {
       close(serverSocket);
       return kServerSocketFailure;
   }
-// IPv4-style socket address
+  // IPv4-style socket address
   struct sockaddr_in serverAddress;
-  memset(&serverAddress, 0,
-    sizeof(serverAddress));
-// sin_family field used to
-// self-identify sockaddr type
+  memset(&serverAddress, 0, sizeof(serverAddress));
+  // sin_family field used to self-identify sockaddr type
   serverAddress.sin_family = AF_INET;
-  serverAddress.sin_addr.s_addr =
-    htonl(INADDR_ANY);
+  serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
   serverAddress.sin_port = htons(port);
-// bind the unbound socket
-// to the (address, port) pair
+  // bind the unbound socket to the (address, port) pair
   if (bind(serverSocket,
     (struct sockaddr *) &serverAddress,
     sizeof(struct sockaddr_in)) < 0) {
       close(serverSocket);
       return kServerSocketFailure;
   }
-// listen through the server socket, to
-// allow a backlog of the specified size
+  // listen through server socket to allow a backlog of specified size
   if (listen(serverSocket, backlog) < 0) {
     close(serverSocket);
     return kServerSocketFailure;
@@ -426,7 +442,7 @@ int main(int argc, char *argv[]) {
         (struct sockaddr *) &clientAddress,
         &clientAddressSize);
     cout << "Received a connection request from "
-    << inet_ntoa(clientAddress.sin_addr) << "." << endl;
+      << inet_ntoa(clientAddress.sin_addr) << "." << endl;
     publishTime(clientSocket);
   }
   return 0;
@@ -437,13 +453,12 @@ static void publishTime(int clientSocket) {
   time(&rawtime);
   struct tm *ptm = gmtime(&rawtime);
   char timeString[64]; // more than big enough
-  /* size_t len = */
-  strftime(timeString, sizeof(timeString), "%c", ptm);
+  /* size_t len = */strftime(timeString, sizeof(timeString), "%c", ptm);
   sockbuf sb(clientSocket); // destructor closes socket
   iosockstream ss(&sb);
   ss << timeString << endl;
 }
-  \end{verbatim}
+  \end{verbatim} }
   {\tt FILE *popen(const char *command, const char *type);} Executes the command
   in the shell, returns a FILE stream for reading or for writing (not both).
   Uses pipes, which are unidirectional.\\
@@ -465,7 +480,8 @@ static void publishTime(int clientSocket) {
   {\it Header}
   This is an example of a GET request header.
   \begin{verbatim}
-static void issueRequest(iosockstream& ss, const string& host, const string& path) {
+static void issueRequest(iosockstream& ss,
+const string& host, const string& path) {
   ss << "GET " << path << " HTTP/1.0\r\n";
   ss << "Host: " << host << "\r\n";
   ss << "\r\n";
