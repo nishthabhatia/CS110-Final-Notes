@@ -277,6 +277,30 @@ int main(int argc, const char *argv[]) {
 
   {\tt sock\_addr}
 
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf Socket API calls}
+
+  {\tt int socket(int socket\_family, int socket\_type, int protocol)}
+
+  {\tt int bind(int sockfd, const struct sockaddr *addr, socklen\_t addrlen)}
+  assigns the address specified by addr to the socket fd.
+
+  {\tt int listen(int sockfd, int backlog)} marks sockfd as passive, accepting
+  incoming connection requests with accept. Backlog is the maximum length of the
+  queue of waiting requests.
+
+  {\tt int accept(int socket, struct sockaddr *restrict address,socklen\_t
+  *restrict address\_len)} Takes a bound socket called in listen. address is a
+  null pointer, or a pointer to a sockaddr structure where the address of the
+  connecting socket will be returned. adress\_len a socklen\_t structure which on
+  input specifies the length of the supplied sockaddr structure, and on output
+  specifies the length of the stored address.
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf Networking Examples}
+
   {\bf Client code}
   \begin{verbatim}
 int createClientSocket(
@@ -389,35 +413,26 @@ int main(int argc, char *argv[]) {
   }
   return 0;
 }
+
+static void publishTime(int clientSocket) {
+  time_t rawtime;
+  time(&rawtime);
+  struct tm *ptm = gmtime(&rawtime);
+  char timeString[64]; // more than big enough
+  /* size_t len = */
+  strftime(timeString, sizeof(timeString), "%c", ptm);
+  sockbuf sb(clientSocket); // destructor closes socket
+  iosockstream ss(&sb);
+  ss << timeString << endl;
+}
   \end{verbatim}
+  {\tt FILE *popen(const char *command, const char *type);} Executes the command
+  in the shell, returns a FILE stream for reading or for writing (not both).
+  Uses pipes, which are unidirectional.\\
+  Example: {\tt FILE *infileFromProcess = popen(command.c\_str(), "r");}
 
-  \noindent\rule{4cm}{0.4pt}
-
-  {\bf Socket API calls}
-
-  {\tt int socket(int socket\_family, int socket\_type, int protocol)}
-
-  {\tt int bind(int sockfd, const struct sockaddr *addr, socklen\_t addrlen)}
-  assigns the address specified by addr to the socket fd.
-
-  {\tt int listen(int sockfd, int backlog)} marks sockfd as passive, accepting
-  incoming connection requests with accept. Backlog is the maximum length of the
-  queue of waiting requests.
-
-  {\tt int accept(int socket, struct sockaddr *restrict address,socklen\_t
-  *restrict address\_len)} Takes a bound socket called in listen. address is a
-  null pointer, or a pointer to a sockaddr structure where the address of the
-  connecting socket will be returned. adress\_len a socklen\_t structure which on
-  input specifies the length of the supplied sockaddr structure, and on output
-  specifies the length of the stored address.
-
-  \noindent\rule{4cm}{0.4pt}
-
-  {\bf Networking Examples}
-
-  {\tt popen}
-
-  {\tt pclose}
+  {\tt int pclose(FILE *stream)} returns the termination status of the command,
+  or -1 on error.
 
   \noindent\rule{4cm}{0.4pt}
 
