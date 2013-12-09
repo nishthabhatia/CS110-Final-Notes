@@ -118,7 +118,19 @@ int subprocess_close(subprocess_t sp) {
   \noindent\rule{4cm}{0.4pt}
 
   {\bf Layering and Naming}
-  %TODO: look at book
+  Block $\rightarrow$ File $\rightarrow$ Inode number $\rightarrow$ File name
+  $\rightarrow$ Path name $\rightarrow$ Absolute path name $\rightarrow$
+  Symbolic link
+
+  Block to Inode are machine-oriented. File name is machine-user interface. Rest
+  are user-oriented.
+
+  Three parts to a naming scheme: namespace (all possible names), name-mapping
+  algorithm (some names to values in ``universe of values''), ``universe of
+  values'' (a value you map to). Like Domain-name system: namespace=domain names
+  (www.google.com), mapping=domain name resolution, universe=ip addresses.
+
+  Modularity between layers. %TODO
 
   \noindent\rule{4cm}{0.4pt}
 
@@ -336,7 +348,10 @@ int main(int argc, const char *argv[]) {
 
   {\it {\tt gethostbyname} vs. {\tt gethostbyname\_r}}
   {\tt struct hostent *gethostbyname(const char *name)} feed in
-  ``www.google.com'' to get a hostent. %TODO r?
+  ``www.google.com'' to get a hostent.
+
+  The \_r version is the reentrant version. It is thread safe with a complicated
+  signature!
 
   {\tt int getaddrinfo(const char *hostname, const char *servname,
   const struct addrinfo *hints, struct addrinfo **res);
@@ -414,7 +429,7 @@ int main(int argc, char *argv[]) {
   getline(ss, timeline);
   cout << timeline << endl;
   return 0;
-} \end{verbatim}
+} \end{verbatim} }
 
   {\bf Server code}{\scriptsize
   \begin{verbatim}
@@ -478,7 +493,7 @@ static void publishTime(int clientSocket) {
   sockbuf sb(clientSocket); // destructor closes socket
   iosockstream ss(&sb);
   ss << timeString << endl;
-} \end{verbatim}
+} \end{verbatim}}
   {\tt FILE *popen(const char *command, const char *type);} Executes the command
   in the shell, returns a FILE stream for reading or for writing (not both).
   Uses pipes, which are unidirectional.\\
@@ -525,7 +540,7 @@ const string& filename) {
   }
   cout << "Total bytes fetched: " << totalBytes << endl;
 }
-  \end{verbatim}
+\end{verbatim}
 
   \noindent\rule{4cm}{0.4pt}
 
