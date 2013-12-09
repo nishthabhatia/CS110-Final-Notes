@@ -36,6 +36,9 @@ struct dirent {
                                  by all file system types */
   char           d_name[256]; /* filename */
 };\end{verbatim}}
+  \texttt{readdir} should be called several times to list all \texttt{dirent}s,
+  then it will return \texttt{NULL} to signal all have been read. Then
+  \texttt{int closedir(DIR* dirp)} should be called to free the dir pointer.
   {\tt ssize\_t read(int fd, void* buf, size\_t count)} Read up to {\tt count}
   bytes from the fd into buf.
 
@@ -46,7 +49,9 @@ struct dirent {
 
   {\tt stat} populates a {\tt struct stat}: use macros
   {\tt S\_ISREG, S\_ISDIR, S\_ISLINK(st.st\_mode) } on the mode field to see
-  what type of object it is.
+  what type of object it is. Bitwise-the mode with \texttt{S\_IRUSR},
+  \texttt{S\_IWUSR}, \texttt{S\_IXUSR}, \texttt{S\_IRGRP}, \texttt{S\_IROTH},
+  etc. to check permissions.
   {\tt stat(char* path, struct stat *st)} populates \texttt{struct stat} defined
   as
   {\footnotesize
