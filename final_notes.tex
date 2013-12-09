@@ -5,6 +5,8 @@
 \usepackage{enumerate}
 \usepackage{amsmath}
 \usepackage{mathtools}
+\usepackage{graphicx}
+
 %\usepackage{macros}
 \usepackage{fancyvrb}
 \DefineVerbatimEnvironment{code}{Verbatim}{fontsize=\small}
@@ -448,19 +450,50 @@ static void publishTime(int clientSocket) {
   Example: {\tt FILE *infileFromProcess = popen(command.c\_str(), "r");}
 
   {\tt int pclose(FILE *stream)} returns the termination status of the command,
-  or -1 on error.
+  or -1 on error. Closes the pipes and waits for the command to exit.
 
   \noindent\rule{4cm}{0.4pt}
 
   {\bf HTTP requests}
 
-  {\it Request line}
+  {\it Request line} The first line of an HTTP request. Contains ``[method]
+  /path/after/server/ HTTP/1.0\textbackslash r \textbackslash n''.
+
+  {\it Status line} The first line of an HTTP respons. Contains ``HTTP/1.0
+  [status code] [status]''. 200 OK, 404 Not Found, etc\dots.
 
   {\it Header}
+  This is an example of a GET request header.
+  \begin{verbatim}
+static void issueRequest(iosockstream& ss, const string& host, const string& path) {
+  ss << "GET " << path << " HTTP/1.0\r\n";
+  ss << "Host: " << host << "\r\n";
+  ss << "\r\n";
+  ss.flush();
+}  \end{verbatim}
+  GET request example:\\
+  {\tt GET /pub/WWW/ HTTP/1.1\\
+  Host: www.w3.org}\\
+  Then, to get the payload from it, you have to read it in. Skip the header
+  using a do-while loop until you get a line of just ``\textbackslash r''.
+  \begin{verbatim}
+static void savePayload(iosockstream& ss,
+const string& filename) {
+  ofstream output(filename.c_str(), ios::binary);
+  size_t totalBytes = 0;
+  while (!ss.fail()) {
+    char buffer[kBufferSize] = {'\0'};
+    ss.read(buffer, sizeof(buffer));
+    totalBytes += ss.gcount();
+    output.write(buffer, ss.gcount());
+  }
+  cout << "Total bytes fetched: " << totalBytes << endl;
+}
+  \end{verbatim}
 
   \noindent\rule{4cm}{0.4pt}
 
   {\bf MapReduce}
-
 \end{multicols}
+  \includegraphics[width=500px]{mr.png}
 \end{document}
