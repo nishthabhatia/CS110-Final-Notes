@@ -1,0 +1,328 @@
+\documentclass{article}
+\usepackage{multicol}
+\usepackage[margin=0.5in]{geometry}
+\usepackage{amssymb}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{mathtools}
+%\usepackage{macros}
+\usepackage{fancyvrb}
+\DefineVerbatimEnvironment{code}{Verbatim}{fontsize=\small}
+\DefineVerbatimEnvironment{example}{Verbatim}{fontsize=\small}
+
+\begin{document}
+\small
+\begin{multicols}{3}
+  \raggedright
+  {\bf Files and Directories}
+
+  {\tt int open(char* pathname, int flags)}. Some useful flags:
+  {\tt O\_WRONLY, O\_RDONLY, O\_CREAT, O\_EXCL}. Returns file descriptor. -1 on
+  error.
+
+  {\tt DIR* opendir(char* path)}.\\
+  {\tt struct dirent* readdir(DIR* dir)}.
+
+  {\tt ssize\_t read(int fd, void* buf, size\_t count)} Read up to {\tt count}
+  bytes from the fd into buf.
+
+  {\tt ssize\_t write(int fd, const void* buf, size\_t count)} write up to {\tt
+  count} bytes into the fd from buf.
+
+  {\tt int close(fd)} returns 0 on success.
+
+  {\tt stat} populates a {\tt struct stat}:
+  {\tt S\_ISREG, S\_ISDIR, S\_ISLINK(st.st\_mode) }.
+  {\tt stat(char* path, struct stat *st)}
+
+  {\tt lstat} Same as {\tt stat} except {\tt lstat} returns info about the
+  link while {\tt stat} returns info about the linked file if a file is a link.
+
+  {\tt int dup2(int oldfd, int newfd)} makes new fd point to oldfd, closing new
+  if necessary. For example, {\tt dup2(fd, STDIN\_FILENO)} to dump fd into STDIN.
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf Layering and Naming}
+  %TODO: look at book
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf v6 Data structures}
+  %TODO: look at project handout
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf Processes}
+
+  {\tt pit\_t fork()} called once, returns twice. {\tt pid = 0} if in child
+  process.
+
+  {\tt waitpid(pid\_t pid, int *status, int options)} store status info into\\
+  {\it status}: {\tt WIFEXITED(status), WEXITSTATUS, WIFSIGNALED, WTERMSIG, WCOREDUMP,
+  WIFSTOPPED} need untraced, {\tt WSTOPSIG} number of signal that stopped the
+  child (if ifstopped returned true), {\tt WIFCONTINUED} child resumed by
+  sigcont.\\
+  {\it Pid}: $<-1$ (wait for any child process whose process group ID is equal to the
+  absolute value of pid.), $-1$ (wait for any child process), $0$ (wait for any
+  child process whose process group ID is equal to that of the calling process),
+  $>0$ (wait for that specific pid)\\
+  {\it Options}: {\tt WNOHANG} (return immediately if no child has exited), {\tt
+  WUNTRACED} (return if a child has stopped even if not traced by ptrace) {\tt
+  WCONTINUED} (return if a stopped child has been resumed by delivery of
+  SIGCONT).
+
+  {\tt int execvp(const char* path, char* argv[])} Consumes the process.
+  \begin{verbatim}
+  pid_t pid = fork();
+exitIf(pid == -1, kForkFailed,
+  stderr, "fork function failed.\n");
+if (pid == 0) {
+  if (execvp(argv[0], argv) < 0) {
+    printf("%s: Command not found\n",
+      argv[0]);
+    exit(0);
+  }
+}\end{verbatim}
+
+  {\tt int signal(int signum, (void sighandler(int signum)))}. If process gets
+  {\tt signum}, it calls the sighandler. {\tt SIGCHLD}\\
+  {\it Signal handlers} are functions that return voids. Need to use global (no
+  state).
+  \begin{verbatim}
+static void reapChild(int sig) {
+pid_t pid;
+while (true) {
+  pid = waitpid(-1, NULL, WNOHANG);
+  if (pid <= 0) break;
+  numChildrenDonePlaying++;
+} \end{verbatim}
+  {\it Signal blocking} Useful for handling SIGCHLDs etc only after they, as
+  jobs, have been added to a list or something, so proper concurrency can
+  happen.
+  \begin{verbatim}
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &mask, NULL);
+  // critical region
+  sigprocmask(SIG_UNBLOCK,&mask,NULL);\end{verbatim}
+
+  {\tt int kill(pid\_t pid, int sig)} Sends sig to process pid. 0 success, -1
+  error.
+
+  {\it Process ids} %TODO?
+
+  {\it Process groups} A parent will create a group with its child -- so can
+  send signals to all of its children.
+
+  {\it Interprocess Concurrency} Use blocking to handle signals only when
+  possible. Use pipes to handle communications.
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf Threading}
+  Threads have independent stacks, but they all share access to the same text,
+  data, and heap segments. Stack segment is subdivided into multiple miniature
+  stacks. Thread manager time slices and switches between simultaneously running
+  threads in much the same way that the kernel scheduler switches between
+  processes.
+  {\it Pro}\\
+  - Easier to support communication between threads, because address spaces
+  accessible are largely the same.\\
+  - Multiple threads can access the same global data and one copy of the code.\\
+  - One thread can share its stack space (via pointers and references) with
+  another thread.\\
+  {\it Con}\\
+  - Multiple threads can access the same global data and one copy of the code.\\
+  - One thread can share its stack space (via pointers and references) with
+  another thread.
+
+  {\tt pthread\_t pthread\_create(pthread\_t *pt, const pthread\_attr\_t *attr,
+  void* (routine)(void* args))}. Can pass arguments in the void *args.\\
+  {\tt pthread\_join(pthread\_t thread, void **retval)} waits for thread to
+  terminate. Returns 0 on success, else returns error number. Copies return
+  value into void **retval.
+
+  {\it Race conditions}
+
+  {\it Critical regions}
+
+  {\tt thread t = thread((void *) (thread function)(arg1, arg2, \ldots))} Use
+  {\tt t.detach()} to detach thread and have it run on its own. Use {\tt
+  t.join()} to join.
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf Locking}
+
+  {\tt mutex m}, {\tt m.lock()}, {\tt m.unlock()}
+
+  {\tt lock\_guard<mutex> lg(m)}. Constructor locks it. Destructor unlocks it.
+
+  {\tt unique\_lock<mutex> ul(m, defer\_lock)}. Wraps around anything with
+  lock/unlock. Used for condition variables.
+
+  {\tt condition\_variable cv}, {\tt cv.wait(ul, bool (function()))}. Checks if
+  function returns true. If false, unlocks ul, waits to be notified to check
+  function again. {\tt cv.notify\_all()} notifies every instance of cv that is
+  waiting.
+
+  {\tt semaphore s(int value).} Atomic counter of a shared resource. No
+  get-value since value could change. No copy constructor. {\tt
+  s.signal()} signals resource added (++), {\tt s.wait()} blocks until there is
+  at least one variable. No busy waiting!
+
+  {\it Rendezvousing etc\ldots} Reader/Writer example.
+  \begin{verbatim}
+static const unsigned int kNumBuffers = 30;
+static const unsigned int kNumCycles = 4;
+
+static char buffer[kNumBuffers];
+static semaphore emptyBuffers(kNumBuffers);
+static semaphore fullBuffers(0);
+
+static void writer() {
+  for (unsigned int i = 0;
+  i < kNumCycles * kNumBuffers; i++) {
+    char ch = prepareData();
+    // don't try to write to a
+    // slot unless you know it's empty
+    emptyBuffers.wait();
+    buffer[i % kNumBuffers] = ch;
+    // signal reader more to read
+    fullBuffers.signal();
+  }
+}
+
+static void reader() {
+  for (unsigned int i = 0;
+  i < kNumCycles * kNumBuffers; i++) {
+    // don't try to read from a
+    // slot unless you know it's full
+    fullBuffers.wait();
+    char ch = buffer[i % kNumBuffers];
+    // signal writer there is open slot for data
+    emptyBuffers.signal();
+    processData(ch);
+  }
+}
+
+int main(int argc, const char *argv[]) {
+  thread w(writer);
+  thread r(reader);
+  w.join();
+  r.join();
+  return 0;
+}
+  \end{verbatim}
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf Networking}
+
+  {\it Client-server model} Servers wait by a phone (socket), bound to a port,
+  and listens for incomming requests to accept as they come in.
+
+  {\it {\tt gethostbyname} vs. {\tt gethostbyname\_r}}
+  {\tt struct hostent *gethostbyname(const char *name)} feed in
+  ``www.google.com'' to get a hostent. %TODO r?
+
+  {\tt int getaddrinfo(const char *hostname, const char *servname,
+  const struct addrinfo *hints, struct addrinfo **res);
+  void freeaddrinfo(struct addrinfo *ai);} implants the head of a
+  linked list of struct addrinfo records in the space addressed by
+  res.\\
+  {\tt freeaddrinfo(struct addrinfo *ai)} fully disposes of the linked list
+  surfaced by an earlier call to getaddrinfo.\\
+  {\tt int getnameinfo(const struct sockaddr *sa, socklen\_t salen,
+  char *host, socklen\_t hostlen,
+  char *serv, socklen\_t servlen, int flags);} gets ip address info.
+
+  {\tt struct hostent *gethostbyaddr(const char *addr, int len, int type);}
+
+  {\tt sock\_addr}
+
+  {\bf Client code}
+  \begin{verbatim}
+int createClientSocket(
+const string& host,
+unsigned short port) {
+  struct hostent *he =
+    gethostbyname(host.c_str());
+  if (he == NULL)
+  return kClientSocketError;
+  int s=socket(AF_INET,SOCK_STREAM,0);
+  if (s < 0)
+    return kClientSocketError;
+  struct sockaddr_in serverAddress;
+  memset(&serverAddress, 0,
+    sizeof(serverAddress));
+  serverAddress.sin_family = AF_INET;
+  serverAddress.sin_port = htons(port);
+  serverAddress.sin_addr.s_addr =
+    ((struct in_addr *)he->h_addr)->s_addr;
+  if (connect(s, (struct sockaddr *)
+    &serverAddress,
+    sizeof(serverAddress)) != 0) {
+    close(s);
+    return kClientSocketError;
+  }
+  return s;
+}
+
+int main(int argc, char *argv[]) {
+  int clientSocket =
+    createClientSocket(
+    "myth22.stanford.edu", 12345);
+  if (clientSocket == kClientSocketError) {
+    cerr << "Time server
+      could not be reached" << endl;
+    cerr << "Aborting" << endl;
+    return kTimeServerInaccessible;
+  }
+  sockbuf sb(clientSocket);
+  iosockstream ss(&sb);
+  string timeline;
+  getline(ss, timeline);
+  cout << timeline << endl;
+  return 0;
+}
+  \end{verbatim}
+
+  {\bf Server code}
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf Socket API calls}
+
+  {\tt socket}
+
+  {\tt bind}
+
+  {\tt listen}
+
+  {\tt accept}
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf Networking Examples}
+
+  {\tt popen}
+
+  {\tt pclose}
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf HTTP requests}
+
+  {\it Request line}
+
+  {\it Header}
+
+  \noindent\rule{4cm}{0.4pt}
+
+  {\bf MapReduce}
+
+\end{multicols}
+\end{document}
