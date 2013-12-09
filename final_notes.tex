@@ -358,8 +358,29 @@ unsigned short port, int backlog) {
     close(serverSocket);
     return kServerSocketFailure;
   }
-
   return serverSocket;
+}
+
+static const int kMaxQueueSize = 10;
+int main(int argc, char *argv[]) {
+  unsigned short port = extractPort(argv[1]);
+  int serverSocket = createServerSocket(port,
+    kMaxQueueSize);
+  while (true) {
+    struct sockaddr_in clientAddress;
+    socklen_t clientAddressSize =
+      sizeof(clientAddress);
+    memset(&clientAddress,
+      0, clientAddressSize);
+    int clientSocket =
+      accept(serverSocket,
+        (struct sockaddr *) &clientAddress,
+        &clientAddressSize);
+    cout << "Received a connection request from "
+    << inet_ntoa(clientAddress.sin_addr) << "." << endl;
+    publishTime(clientSocket);
+  }
+  return 0;
 }
   \end{verbatim}
 
@@ -376,7 +397,12 @@ unsigned short port, int backlog) {
   incoming connection requests with accept. Backlog is the maximum length of the
   queue of waiting requests.
 
-  {\tt accept}
+  {\tt int accept(int socket, struct sockaddr *restrict address,socklen\_t
+  *restrict address\_len)} Takes a bound socket called in listen. address is a
+  null pointer, or a pointer to a sockaddr structure where the address of the
+  connecting socket will be returned. adress\_len a socklen\_t structure which on
+  input specifies the length of the supplied sockaddr structure, and on output
+  specifies the length of the stored address.
 
   \noindent\rule{4cm}{0.4pt}
 
