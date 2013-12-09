@@ -7,6 +7,10 @@
 \usepackage{mathtools}
 %\usepackage{macros}
 \usepackage{fancyvrb}
+\usepackage{etoolbox}
+\makeatletter
+\preto{\@verbatim}{\topsep=0pt \partopsep=0pt}
+\makeatother
 \DefineVerbatimEnvironment{code}{Verbatim}{fontsize=\small}
 \DefineVerbatimEnvironment{example}{Verbatim}{fontsize=\small}
 
@@ -21,8 +25,13 @@
   error.
 
   {\tt DIR* opendir(char* path)}.\\
-  {\tt struct dirent* readdir(DIR* dir)}.
-
+  {\tt struct dirent* readdir(DIR* dir)}. \texttt{struct dirent*} represents an
+  entry (file or subdirectory) inside a directory:
+  \begin{verbatim}
+struct dirent {
+  ino_t d_ino;    // inode number
+  char  d_name[]; // name of entry
+};\end{verbatim}
   {\tt ssize\_t read(int fd, void* buf, size\_t count)} Read up to {\tt count}
   bytes from the fd into buf.
 
@@ -33,8 +42,26 @@
 
   {\tt stat} populates a {\tt struct stat}:
   {\tt S\_ISREG, S\_ISDIR, S\_ISLINK(st.st\_mode) }.
-  {\tt stat(char* path, struct stat *st)}
-
+  {\tt stat(char* path, struct stat *st)} populates \texttt{struct stat} defined
+  as
+{\tiny
+  \begin{verbatim}
+struct stat {
+  dev_t     st_dev;     /* ID of device containing file */
+  ino_t     st_ino;     /* inode number */
+  mode_t    st_mode;    /* protection */
+  nlink_t   st_nlink;   /* number of hard links */
+  uid_t     st_uid;     /* user ID of owner */
+  gid_t     st_gid;     /* group ID of owner */
+  dev_t     st_rdev;    /* device ID (if special file) */
+  off_t     st_size;    /* total size, in bytes */
+  blksize_t st_blksize; /* blocksize for file system I/O */
+  blkcnt_t  st_blocks;  /* number of 512B blocks allocated */
+  time_t    st_atime;   /* time of last access */
+  time_t    st_mtime;   /* time of last modification */
+  time_t    st_ctime;   /* time of last status change */
+}; \end{verbatim}
+}
   {\tt lstat} Same as {\tt stat} except {\tt lstat} returns info about the
   link while {\tt stat} returns info about the linked file if a file is a link.
 
@@ -73,8 +100,8 @@
   SIGCONT).
 
   {\tt int execvp(const char* path, char* argv[])} Consumes the process.
-  \begin{verbatim}
-  pid_t pid = fork();
+\begin{verbatim}
+pid_t pid = fork();
 exitIf(pid == -1, kForkFailed,
   stderr, "fork function failed.\n");
 if (pid == 0) {
