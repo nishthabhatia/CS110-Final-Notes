@@ -84,6 +84,37 @@ struct stat {
   {\tt int dup2(int oldfd, int newfd)} makes new fd point to oldfd, closing new
   if necessary. For example, {\tt dup2(fd, STDIN\_FILENO)} to dump fd into STDIN.
 
+  \texttt{int pipe(int pipefd[2])} makes a data channel (pipe) between two fds:
+  \texttt{pipefd[0]} is the read end, \texttt{pipefd[1]} is the write end.
+  Anything written to the write end will be buffered until read by the read end.
+  {\scriptsize
+  \begin{verbatim}
+typedef struct subprocess_t {
+  pid_t pid;
+  int infd;
+  int outfd;
+} subprocess_t;
+subprocess_t subprocess_open(const char *command) {
+  int pcfds[2]; // parent-to-child descriptors
+  int cpfds[2]; // child-to-parent descriptors
+  pipe(pcfds); pipe(cpfds);
+  subprocess_t process = { fork(), pcfds[1], cpfds[0] };
+  if (process.pid == 0) {
+    dup2(pcfds[0], STDIN_FILENO); dup2(cpfds[1], STDOUT_FILENO);
+    close(pcfds[0]); close(cpfds[0]); close(pcfds[1]); close(cpfds[1]);
+    char *argv[] = {"/bin/sh", "-c", (char *) command, NULL};
+    execvp(argv[0], argv);
+  }
+  close(pcfds[0]); close(cpfds[1]);
+  return process;
+}
+int subprocess_close(subprocess_t sp) {
+  int status;
+  pid_t pid = waitpid(sp.pid, &status, WNOHANG | WUNTRACED);
+  return pid == sp.pid && WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+}
+\end{verbatim}}
+
   \noindent\rule{4cm}{0.4pt}
 
   {\bf Layering and Naming}
@@ -222,18 +253,16 @@ while (true) {
 
   {\tt semaphore s(int value).} Atomic counter of a shared resource. No
   get-value since value could change. No copy constructor. {\tt
-  s.signal()} signals resource added (++), {\tt s.wait()} blocks until there is
-  at least one variable. No busy waiting!
+  s.signal()} signals resource added (increment/\texttt{++}), {\tt s.wait()}
+  blocks until there is at least one variable. No busy waiting!
 
   {\it Rendezvousing etc\ldots} Reader/Writer example.
   \begin{verbatim}
 static const unsigned int kNumBuffers = 30;
 static const unsigned int kNumCycles = 4;
-
 static char buffer[kNumBuffers];
 static semaphore emptyBuffers(kNumBuffers);
 static semaphore fullBuffers(0);
-
 static void writer() {
   for (unsigned int i = 0;
   i < kNumCycles * kNumBuffers; i++) {
@@ -246,7 +275,6 @@ static void writer() {
     fullBuffers.signal();
   }
 }
-
 static void reader() {
   for (unsigned int i = 0;
   i < kNumCycles * kNumBuffers; i++) {
@@ -259,17 +287,14 @@ static void reader() {
     processData(ch);
   }
 }
-
 int main(int argc, const char *argv[]) {
   thread w(writer);
   thread r(reader);
   w.join();
   r.join();
   return 0;
-}
-  \end{verbatim}
-
-  \noindent\rule{4cm}{0.4pt}
+} \end{verbatim}
+\noindent\rule{4cm}{0.4pt}
 
   {\bf Networking}
 
@@ -347,7 +372,6 @@ unsigned short port) {
   }
   return s;
 }
-
 int main(int argc, char *argv[]) {
   int clientSocket =
     createClientSocket(
@@ -364,8 +388,7 @@ int main(int argc, char *argv[]) {
   getline(ss, timeline);
   cout << timeline << endl;
   return 0;
-}
-  \end{verbatim}
+} \end{verbatim}
 
   {\bf Server code}
   \begin{verbatim}
@@ -409,7 +432,6 @@ unsigned short port, int backlog) {
   }
   return serverSocket;
 }
-
 static const int kMaxQueueSize = 10;
 int main(int argc, char *argv[]) {
   unsigned short port = extractPort(argv[1]);
@@ -431,7 +453,6 @@ int main(int argc, char *argv[]) {
   }
   return 0;
 }
-
 static void publishTime(int clientSocket) {
   time_t rawtime;
   time(&rawtime);
@@ -442,8 +463,7 @@ static void publishTime(int clientSocket) {
   sockbuf sb(clientSocket); // destructor closes socket
   iosockstream ss(&sb);
   ss << timeString << endl;
-}
-  \end{verbatim}
+} \end{verbatim}
   {\tt FILE *popen(const char *command, const char *type);} Executes the command
   in the shell, returns a FILE stream for reading or for writing (not both).
   Uses pipes, which are unidirectional.\\
@@ -494,6 +514,6 @@ const string& filename) {
   \noindent\rule{4cm}{0.4pt}
 
   {\bf MapReduce}
+  \includegraphics[width=3.8in]{mr.png}
 \end{multicols}
-  \includegraphics[width=500px]{mr.png}
 \end{document}
