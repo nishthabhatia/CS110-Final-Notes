@@ -340,11 +340,14 @@ unsigned short port, int backlog) {
 
   {\bf Socket API calls}
 
-  {\tt socket}
+  {\tt int socket(int socket\_family, int socket\_type, int protocol)}
 
-  {\tt bind}
+  {\tt int bind(int sockfd, const struct sockaddr *addr, socklen\_t addrlen)}
+  assigns the address specified by addr to the socket fd.
 
-  {\tt listen}
+  {\tt int listen(int sockfd, int backlog)} marks sockfd as passive, accepting
+  incoming connection requests with accept. Backlog is the maximum length of the
+  queue of waiting requests.
 
   {\tt accept}
 
