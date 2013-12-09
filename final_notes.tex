@@ -11,7 +11,7 @@
 \DefineVerbatimEnvironment{example}{Verbatim}{fontsize=\small}
 
 \begin{document}
-\small
+\scriptsize
 \begin{multicols}{3}
   \raggedright
   {\bf Files and Directories}
@@ -261,7 +261,8 @@ unsigned short port) {
   serverAddress.sin_family = AF_INET;
   serverAddress.sin_port = htons(port);
   serverAddress.sin_addr.s_addr =
-    ((struct in_addr *)he->h_addr)->s_addr;
+    ((struct in_addr *)
+      he->h_addr)->s_addr;
   if (connect(s, (struct sockaddr *)
     &serverAddress,
     sizeof(serverAddress)) != 0) {
@@ -291,6 +292,49 @@ int main(int argc, char *argv[]) {
   \end{verbatim}
 
   {\bf Server code}
+  \begin{verbatim}
+static const int kReuseAddresses = 1;
+int createServerSocket(
+unsigned short port, int backlog) {
+  int serverSocket = socket(AF_INET,
+    SOCK_STREAM, 0);
+  if (serverSocket < 0)
+    return kServerSocketFailure;
+  if (setsockopt(serverSocket,
+    SOL_SOCKET, SO_REUSEADDR,
+    &kReuseAddresses,
+    sizeof(int)) < 0) {
+      close(serverSocket);
+      return kServerSocketFailure;
+  }
+// IPv4-style socket address
+  struct sockaddr_in serverAddress;
+  memset(&serverAddress, 0,
+    sizeof(serverAddress));
+// sin_family field used to
+// self-identify sockaddr type
+  serverAddress.sin_family = AF_INET;
+  serverAddress.sin_addr.s_addr =
+    htonl(INADDR_ANY);
+  serverAddress.sin_port = htons(port);
+// bind the unbound socket
+// to the (address, port) pair
+  if (bind(serverSocket,
+    (struct sockaddr *) &serverAddress,
+    sizeof(struct sockaddr_in)) < 0) {
+      close(serverSocket);
+      return kServerSocketFailure;
+  }
+// listen through the server socket, to
+// allow a backlog of the specified size
+  if (listen(serverSocket, backlog) < 0) {
+    close(serverSocket);
+    return kServerSocketFailure;
+  }
+
+  return serverSocket;
+}
+  \end{verbatim}
 
   \noindent\rule{4cm}{0.4pt}
 
