@@ -18,10 +18,24 @@
 
   {\tt int open(char* pathname, int flags)}. Some useful flags:
   {\tt O\_WRONLY, O\_RDONLY, O\_CREAT, O\_EXCL}. Returns file descriptor. -1 on
-  error.
+  error. Can also pass a third parameter of the desired mode for the file (see
+  below for mode flags).
 
-  {\tt DIR* opendir(char* path)}.\\
-  {\tt struct dirent* readdir(DIR* dir)}. \texttt{struct dirent*} represents an
+  {\tt ssize\_t read(int fd, void* buf, size\_t count)} Read up to {\tt count}
+  bytes from the fd into buf. Returns the number of bytes read or -1 if error.
+
+  {\tt ssize\_t write(int fd, const void* buf, size\_t count)} write up to {\tt
+  count} bytes into the fd from buf. Returns the number of bytes written or -1
+  if error.
+
+  {\tt int close(fd)} returns 0 on success.
+  In general, \texttt{FILE *} (opened with \texttt{fopen}) and C++
+  \texttt{iostream}s have a more powerful API, but only generalize to stdio and
+  local files. File descriptors have a less powerful API but also generalize to
+  network streams.
+
+  {\tt DIR* opendir(char* path)},
+  {\tt struct dirent* readdir(DIR* dir)}: \texttt{struct dirent*} represents an
   entry (file or subdirectory) inside a directory, where \texttt{d\_ino} and
   \texttt{d\_name} fields are definitely present on all platforms.
   {\footnotesize
@@ -37,17 +51,10 @@ struct dirent {
   \texttt{readdir} should be called several times to list all \texttt{dirent}s,
   then it will return \texttt{NULL} to signal all have been read. Then
   \texttt{int closedir(DIR* dirp)} should be called to free the dir pointer.
-  {\tt ssize\_t read(int fd, void* buf, size\_t count)} Read up to {\tt count}
-  bytes from the fd into buf.
-
-  {\tt ssize\_t write(int fd, const void* buf, size\_t count)} write up to {\tt
-  count} bytes into the fd from buf.
-
-  {\tt int close(fd)} returns 0 on success.
 
   {\tt stat} populates a {\tt struct stat}: use macros
   {\tt S\_ISREG, S\_ISDIR, S\_ISLINK(st.st\_mode) } on the mode field to see
-  what type of object it is. Bitwise-the mode with \texttt{S\_IRUSR},
+  what type of object it is. Bitwise-and the mode with \texttt{S\_IRUSR},
   \texttt{S\_IWUSR}, \texttt{S\_IXUSR}, \texttt{S\_IRGRP}, \texttt{S\_IROTH},
   etc. to check permissions.
   {\tt stat(char* path, struct stat *st)} populates \texttt{struct stat} defined
@@ -93,9 +100,10 @@ struct stat {
   process.
 
   {\tt waitpid(pid\_t pid, int *status, int options)} store status info into\\
-  {\it status}: {\tt WIFEXITED(status), WEXITSTATUS, WIFSIGNALED, WTERMSIG, WCOREDUMP,
-  WIFSTOPPED} need untraced, {\tt WSTOPSIG} number of signal that stopped the
-  child (if ifstopped returned true), {\tt WIFCONTINUED} child resumed by
+  {\it status}: {\tt WIFEXITED(status), WEXITSTATUS, WIFSIGNALED, WTERMSIG,
+  WCOREDUMP, WIFSTOPPED} need untraced, {\tt WSTOPSIG} number of signal that
+  stopped the child (if ifstopped returned true), {\tt WIFCONTINUED} child
+  resumed by
   sigcont.\\
   {\it Pid}: $<-1$ (wait for any child process whose process group ID is equal to the
   absolute value of pid.), $-1$ (wait for any child process), $0$ (wait for any
@@ -104,23 +112,30 @@ struct stat {
   {\it Options}: {\tt WNOHANG} (return immediately if no child has exited), {\tt
   WUNTRACED} (return if a child has stopped even if not traced by ptrace) {\tt
   WCONTINUED} (return if a stopped child has been resumed by delivery of
-  SIGCONT).
+  \texttt{SIGCONT}).
 
-  {\tt int execvp(const char* path, char* argv[])} Consumes the process.
+  {\tt int execvp(const char* path, char* argv[])} Consumes the process on
+  success so it should not be expected to return.
 \begin{verbatim}
 pid_t pid = fork();
-exitIf(pid == -1, kForkFailed,
-  stderr, "fork function failed.\n");
+exitIf(pid == -1, kForkFailed, stderr,
+  "fork function failed.\n");
 if (pid == 0) {
   if (execvp(argv[0], argv) < 0) {
-    printf("%s: Command not found\n",
-      argv[0]);
+    printf("%s: Command not found\n", argv[0]);
     exit(0);
   }
 }\end{verbatim}
 
   {\tt int signal(int signum, (void sighandler(int signum)))}. If process gets
-  {\tt signum}, it calls the sighandler. {\tt SIGCHLD}\\
+  {\tt signum}, it calls the sighandler. \texttt{SIGCHLD} is received if a child
+  process that has been previously forked off finishes running. \texttt{SIGINT}
+  is interruption (ctrl-C). \texttt{SIGKILL} is when the process is killed by
+  \texttt{kill} to make it stop immediately (can't be caught), \texttt{SIGTERM}
+  is the same but lets it clean up. \texttt{SIGSTOP} is temporary stopping
+  (ctrl-Z), \texttt{SIGCONT} is continuation after stopping, perhaps by
+  \texttt{fg} or \texttt{bg}.
+
   {\it Signal handlers} are functions that return voids. Need to use global (no
   state).
   \begin{verbatim}
@@ -131,7 +146,7 @@ while (true) {
   if (pid <= 0) break;
   numChildrenDonePlaying++;
 } \end{verbatim}
-  {\it Signal blocking} Useful for handling SIGCHLDs etc only after they, as
+  {\it Signal blocking} Useful for handling \texttt{SIGCHLD}s etc only after they, as
   jobs, have been added to a list or something, so proper concurrency can
   happen.
   \begin{verbatim}
@@ -168,8 +183,9 @@ while (true) {
   - One thread can share its stack space (via pointers and references) with
   another thread.\\
   {\it Con}\\
-  - Multiple threads can access the same global data and one copy of the code.\\
-  - One thread can share its stack space (via pointers and references) with
+  - Multiple threads must unfortunately access the same global data and only one
+  copy of the code.\\
+  - Every thread might share its stack space (via pointers and references) with
   another thread.
 
   {\tt pthread\_t pthread\_create(pthread\_t *pt, const pthread\_attr\_t *attr,
