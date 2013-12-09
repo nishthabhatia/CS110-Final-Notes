@@ -115,6 +115,45 @@ int subprocess_close(subprocess_t sp) {
 }
 \end{verbatim}}
 
+{\it More about pipes!} popen and pclose.
+\begin{verbatim}
+// static globals are initially zeroed out
+static pid_t childProcesses[256];
+FILE *popen(const char *command, const char *mode) {
+  int fds[2];
+  pipe(fds);
+  pid_t pid = fork();
+  if (pid == 0) {
+  int index = mode[0] == 'w' ? 0 : 1;
+  int stdfd = mode[0] == 'w' ? STDIN_FILENO : STDOUT_FILENO;
+  dup2(fds[index], stdfd);
+  close(fds[0]);
+  close(fds[1]);
+  char *argv[] = {"/bin/sh", "-c", (char *) command, NULL};
+    execvp(argv[0], argv);
+  }
+
+  int indexToClose = mode[0] == 'w' ? 0 : 1;
+  int indexToKeep = mode[0] == 'w' ? 1 : 0;
+  close(fds[indexToClose]);
+  FILE *fp = fdopen(fds[indexToKeep], mode);
+  childProcesses[fds[indexToKeep]] = pid;
+  return fp;
+}
+
+int pclose(FILE *processStream) {
+  int fd = fileno(processStream);
+  pid_t pid = childProcesses[fd];
+  // not needed for correct solution.. just a sanity check
+  assert(pid > 0);
+  childProcesses[fd] = 0;
+  fclose(processStream);
+  int status;
+  waitpid(pid, &status, 0);
+  return status;
+}
+\end{verbatim}
+
   \noindent\rule{4cm}{0.4pt}
 
   {\bf Layering and Naming}
